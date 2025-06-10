@@ -1,17 +1,13 @@
 const CallsignProfile = require('../models/callsignProfile.model');
-const databaseManager = require('../utils/databaseManager');
+const User = require('../models/user.model');
 const asyncHandler = require('../middleware/async');
 const { createError } = require('../utils/error.util');
 
-// @desc    获取用户的所有呼号档案
+// @desc    获取所有呼号档案
 // @route   GET /api/callsign-profiles
 // @access  Private
 exports.getCallsignProfiles = asyncHandler(async (req, res, next) => {
-  const userConnection = await databaseManager.getUserConnection(req.user.userDatabaseName);
-  const CallsignProfile = userConnection.model('CallsignProfile');
-
   const profiles = await CallsignProfile.find({
-    userId: req.user.id,
     isActive: true
   }).sort({ createdAt: -1 });
 
@@ -26,12 +22,8 @@ exports.getCallsignProfiles = asyncHandler(async (req, res, next) => {
 // @route   GET /api/callsign-profiles/:id
 // @access  Private
 exports.getCallsignProfile = asyncHandler(async (req, res, next) => {
-  const userConnection = await databaseManager.getUserConnection(req.user.userDatabaseName);
-  const CallsignProfile = userConnection.model('CallsignProfile');
-
   const profile = await CallsignProfile.findOne({
     _id: req.params.id,
-    userId: req.user.id,
     isActive: true
   });
 
@@ -49,15 +41,8 @@ exports.getCallsignProfile = asyncHandler(async (req, res, next) => {
 // @route   POST /api/callsign-profiles
 // @access  Private
 exports.createCallsignProfile = asyncHandler(async (req, res, next) => {
-  const userConnection = await databaseManager.getUserConnection(req.user.userDatabaseName);
-  const CallsignProfile = userConnection.model('CallsignProfile');
-
-  // 添加用户ID到请求体
-  req.body.userId = req.user.id;
-
   // 检查呼号是否已存在
   const existingProfile = await CallsignProfile.findOne({
-    userId: req.user.id,
     callsignName: req.body.callsignName.toUpperCase(),
     isActive: true
   });
@@ -66,9 +51,8 @@ exports.createCallsignProfile = asyncHandler(async (req, res, next) => {
     return next(createError(400, '该呼号档案已存在'));
   }
 
-  // 如果这是用户的第一个呼号档案，自动设为默认
+  // 如果这是第一个呼号档案，自动设为默认
   const profileCount = await CallsignProfile.countDocuments({
-    userId: req.user.id,
     isActive: true
   });
 
@@ -80,7 +64,6 @@ exports.createCallsignProfile = asyncHandler(async (req, res, next) => {
 
   // 如果设置为默认呼号，更新用户模型
   if (profile.isDefault) {
-    const User = databaseManager.getMainConnection().model('User');
     await User.findByIdAndUpdate(req.user.id, {
       defaultCallsignProfile: profile._id
     });
@@ -96,12 +79,8 @@ exports.createCallsignProfile = asyncHandler(async (req, res, next) => {
 // @route   PUT /api/callsign-profiles/:id
 // @access  Private
 exports.updateCallsignProfile = asyncHandler(async (req, res, next) => {
-  const userConnection = await databaseManager.getUserConnection(req.user.userDatabaseName);
-  const CallsignProfile = userConnection.model('CallsignProfile');
-
   let profile = await CallsignProfile.findOne({
     _id: req.params.id,
-    userId: req.user.id,
     isActive: true
   });
 
@@ -112,7 +91,6 @@ exports.updateCallsignProfile = asyncHandler(async (req, res, next) => {
   // 如果更新呼号名称，检查是否重复
   if (req.body.callsignName && req.body.callsignName !== profile.callsignName) {
     const existingProfile = await CallsignProfile.findOne({
-      userId: req.user.id,
       callsignName: req.body.callsignName.toUpperCase(),
       isActive: true,
       _id: { $ne: req.params.id }
@@ -130,7 +108,6 @@ exports.updateCallsignProfile = asyncHandler(async (req, res, next) => {
 
   // 如果设置为默认呼号，更新用户模型
   if (profile.isDefault) {
-    const User = databaseManager.getMainConnection().model('User');
     await User.findByIdAndUpdate(req.user.id, {
       defaultCallsignProfile: profile._id
     });
@@ -146,12 +123,8 @@ exports.updateCallsignProfile = asyncHandler(async (req, res, next) => {
 // @route   DELETE /api/callsign-profiles/:id
 // @access  Private
 exports.deleteCallsignProfile = asyncHandler(async (req, res, next) => {
-  const userConnection = await databaseManager.getUserConnection(req.user.userDatabaseName);
-  const CallsignProfile = userConnection.model('CallsignProfile');
-
   const profile = await CallsignProfile.findOne({
     _id: req.params.id,
-    userId: req.user.id,
     isActive: true
   });
 
@@ -160,7 +133,7 @@ exports.deleteCallsignProfile = asyncHandler(async (req, res, next) => {
   }
 
   // 检查是否有关联的卡片
-  const Card = userConnection.model('Card');
+  const Card = require('../models/card.model');
   const cardCount = await Card.countDocuments({
     callsignProfile: req.params.id
   });
@@ -176,7 +149,6 @@ exports.deleteCallsignProfile = asyncHandler(async (req, res, next) => {
   // 如果删除的是默认呼号，需要设置新的默认呼号
   if (profile.isDefault) {
     const newDefaultProfile = await CallsignProfile.findOne({
-      userId: req.user.id,
       isActive: true,
       _id: { $ne: req.params.id }
     }).sort({ createdAt: 1 });
@@ -186,13 +158,11 @@ exports.deleteCallsignProfile = asyncHandler(async (req, res, next) => {
       await newDefaultProfile.save();
 
       // 更新用户模型
-      const User = databaseManager.getMainConnection().model('User');
       await User.findByIdAndUpdate(req.user.id, {
         defaultCallsignProfile: newDefaultProfile._id
       });
     } else {
       // 如果没有其他呼号档案，清除用户的默认呼号
-      const User = databaseManager.getMainConnection().model('User');
       await User.findByIdAndUpdate(req.user.id, {
         defaultCallsignProfile: null
       });
@@ -209,12 +179,8 @@ exports.deleteCallsignProfile = asyncHandler(async (req, res, next) => {
 // @route   PUT /api/callsign-profiles/:id/set-default
 // @access  Private
 exports.setDefaultCallsignProfile = asyncHandler(async (req, res, next) => {
-  const userConnection = await databaseManager.getUserConnection(req.user.userDatabaseName);
-  const CallsignProfile = userConnection.model('CallsignProfile');
-
   const profile = await CallsignProfile.findOne({
     _id: req.params.id,
-    userId: req.user.id,
     isActive: true
   });
 
@@ -224,7 +190,7 @@ exports.setDefaultCallsignProfile = asyncHandler(async (req, res, next) => {
 
   // 将其他呼号档案的默认状态设为false
   await CallsignProfile.updateMany(
-    { userId: req.user.id, _id: { $ne: req.params.id } },
+    { _id: { $ne: req.params.id } },
     { isDefault: false }
   );
 
@@ -233,7 +199,6 @@ exports.setDefaultCallsignProfile = asyncHandler(async (req, res, next) => {
   await profile.save();
 
   // 更新用户模型
-  const User = databaseManager.getMainConnection().model('User');
   await User.findByIdAndUpdate(req.user.id, {
     defaultCallsignProfile: profile._id
   });
@@ -248,11 +213,7 @@ exports.setDefaultCallsignProfile = asyncHandler(async (req, res, next) => {
 // @route   GET /api/callsign-profiles/default
 // @access  Private
 exports.getDefaultCallsignProfile = asyncHandler(async (req, res, next) => {
-  const userConnection = await databaseManager.getUserConnection(req.user.userDatabaseName);
-  const CallsignProfile = userConnection.model('CallsignProfile');
-
   const profile = await CallsignProfile.findOne({
-    userId: req.user.id,
     isDefault: true,
     isActive: true
   });

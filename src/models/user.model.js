@@ -11,14 +11,6 @@ const UserSchema = new mongoose.Schema({
     minlength: [3, '用户名至少需要3个字符'],
     maxlength: [50, '用户名不能超过50个字符']
   },
-  email: {
-    type: String,
-    required: [true, '电子邮箱是必填项'],
-    unique: true,
-    trim: true,
-    lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, '请提供有效的电子邮箱地址']
-  },
   password: {
     type: String,
     required: [true, '密码是必填项'],
@@ -37,14 +29,6 @@ const UserSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  role: {
-    type: String,
-    enum: ['admin', 'user'],
-    default: 'user'
-  },
-  avatar: {
-    type: String
-  },
   isActive: {
     type: Boolean,
     default: true
@@ -52,19 +36,16 @@ const UserSchema = new mongoose.Schema({
   lastLogin: {
     type: Date
   },
-  resetPasswordToken: String,
-  resetPasswordExpire: Date,
-  // 新增字段：用户专属数据库名称
-  userDatabaseName: {
-    type: String,
-    unique: true,
-    sparse: true
-  },
-  // 新增字段：默认呼号档案ID
+  // 默认呼号档案ID
   defaultCallsignProfile: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CallsignProfile',
     default: null
+  },
+  // 系统初始化标志
+  isInitialized: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
@@ -82,55 +63,18 @@ UserSchema.pre('save', async function(next) {
   next();
 });
 
-// 生成用户专属数据库名称
-UserSchema.pre('save', async function(next) {
-  if (this.isNew && !this.userDatabaseName) {
-    // 使用时间戳和随机数生成唯一的数据库名称
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    this.userDatabaseName = `radio_card_user_${timestamp}_${random}`;
-  }
-  next();
-});
-
 // 生成JWT令牌
 UserSchema.methods.getSignedJwtToken = function() {
   return jwt.sign(
-    { id: this._id, role: this.role, userDb: this.userDatabaseName },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE }
-  );
-};
-
-// 生成刷新令牌
-UserSchema.methods.getRefreshToken = function() {
-  return jwt.sign(
     { id: this._id },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRE }
+    { expiresIn: process.env.JWT_EXPIRE || '7d' }
   );
 };
 
 // 验证密码
 UserSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
-};
-
-// 生成重置密码令牌
-UserSchema.methods.getResetPasswordToken = function() {
-  // 生成令牌
-  const resetToken = crypto.randomBytes(20).toString('hex');
-
-  // 加密令牌并设置到resetPasswordToken字段
-  this.resetPasswordToken = crypto
-    .createHash('sha256')
-    .update(resetToken)
-    .digest('hex');
-
-  // 设置过期时间（1小时）
-  this.resetPasswordExpire = Date.now() + 3600000;
-
-  return resetToken;
 };
 
 module.exports = mongoose.model('User', UserSchema);

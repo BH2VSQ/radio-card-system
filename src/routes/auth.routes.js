@@ -1,18 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const { 
-  register, 
+  initialize,
   login, 
   logout, 
   getMe, 
-  refreshToken,
-  forgotPassword,
-  resetPassword
+  getInitStatus,
+  updateProfile,
+  changePassword
 } = require('../controllers/auth.controller');
 const { authMiddleware } = require('../middleware/auth.middleware');
 
-// 注册新用户
-router.post('/register', register);
+// 检查系统初始化状态
+router.get('/init-status', getInitStatus);
+
+// 系统初始化
+router.post('/initialize', initialize);
 
 // 用户登录
 router.post('/login', login);
@@ -23,14 +26,11 @@ router.post('/logout', authMiddleware, logout);
 // 获取当前用户信息
 router.get('/me', authMiddleware, getMe);
 
-// 刷新令牌
-router.post('/refresh-token', refreshToken);
+// 更新用户信息
+router.put('/profile', authMiddleware, updateProfile);
 
-// 忘记密码
-router.post('/forgot-password', forgotPassword);
-
-// 重置密码
-router.put('/reset-password/:resetToken', resetPassword);
+// 修改密码
+router.put('/change-password', authMiddleware, changePassword);
 
 module.exports = router;
 

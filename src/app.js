@@ -5,9 +5,6 @@ const mongoose = require('mongoose');
 const morgan = require('morgan');
 const path = require('path');
 
-// 导入数据库管理器
-const databaseManager = require('./utils/databaseManager');
-
 // 导入路由
 const authRoutes = require('./routes/auth.routes');
 const cardRoutes = require('./routes/card.routes');
@@ -35,17 +32,14 @@ const app = express();
 // 初始化数据库连接
 async function initializeDatabase() {
   try {
-    // 初始化主数据库连接
-    await databaseManager.initMainConnection();
-    
-    // 连接传统的mongoose连接（用于向后兼容）
+    // 连接MongoDB
     await mongoose.connect(process.env.MONGO_URI);
     console.log('MongoDB连接成功');
     
     // 创建默认证书模板
     createDefaultTemplates();
   } catch (err) {
-    console.error('数据库初始化失败:', err.message);
+    console.error('数据库连接失败:', err.message);
     process.exit(1);
   }
 }
@@ -74,23 +68,10 @@ app.use('/api/eyeball-cards', authMiddleware, eyeballCardRoutes);
 app.use('/api/sent-cards', authMiddleware, sentCardRoutes);
 app.use('/api/certificates', authMiddleware, certificateRoutes);
 app.use('/api/callsign-associations', authMiddleware, callsignAssociationRoutes);
-app.use('/api/callsign-profiles', authMiddleware, callsignProfileRoutes);
+app.use('/api/callsign-profiles', callsignProfileRoutes);
 
 // 错误处理中间件
 app.use(errorHandler);
-
-// 优雅关闭
-process.on('SIGTERM', async () => {
-  console.log('收到SIGTERM信号，正在关闭服务器...');
-  await databaseManager.closeAllConnections();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('收到SIGINT信号，正在关闭服务器...');
-  await databaseManager.closeAllConnections();
-  process.exit(0);
-});
 
 // 启动服务器
 const PORT = process.env.PORT || 5000;

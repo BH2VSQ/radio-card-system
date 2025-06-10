@@ -1,42 +1,30 @@
-const crypto = require('crypto');
 const User = require('../models/user.model');
-const databaseManager = require('../utils/databaseManager');
 const { createError } = require('../utils/error.util');
 
 /**
- * @desc    注册新用户
- * @route   POST /api/auth/register
+ * @desc    系统初始化
+ * @route   POST /api/auth/initialize
  * @access  Public
  */
-exports.register = async (req, res, next) => {
+exports.initialize = async (req, res, next) => {
   try {
-    const { username, email, password, fullName, callsign, qth } = req.body;
+    const { username, password, fullName, callsign, qth } = req.body;
 
-    // 检查用户是否已存在
-    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    // 检查系统是否已初始化
+    const existingUser = await User.findOne({});
     if (existingUser) {
-      return next(createError(400, '用户名或电子邮箱已被注册'));
+      return next(createError(400, '系统已经初始化，请直接登录'));
     }
 
-    // 创建用户
+    // 创建管理员用户
     const user = await User.create({
       username,
-      email,
       password,
       fullName,
       callsign,
-      qth
+      qth,
+      isInitialized: true
     });
-
-    // 为新用户创建专属数据库
-    try {
-      await databaseManager.createUserDatabase(user.userDatabaseName, user._id);
-    } catch (dbError) {
-      console.error('创建用户数据库失败:', dbError);
-      // 如果数据库创建失败，删除已创建的用户
-      await User.findByIdAndDelete(user._id);
-      return next(createError(500, '用户注册失败，请重试'));
-    }
 
     // 更新最后登录时间
     user.lastLogin = Date.now();
@@ -64,9 +52,7 @@ exports.login = async (req, res, next) => {
     }
 
     // 查找用户
-    const user = await User.findOne({ 
-      $or: [{ username }, { email: username }] 
-    }).select('+password');
+    const user = await User.findOne({ username }).select('+password');
 
     if (!user) {
       return next(createError(401, '无效的凭据'));
@@ -74,27 +60,13 @@ exports.login = async (req, res, next) => {
 
     // 检查用户是否被禁用
     if (!user.isActive) {
-      return next(createError(401, '账号已被禁用，请联系管理员'));
+      return next(createError(401, '账号已被禁用'));
     }
 
     // 验证密码
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return next(createError(401, '无效的凭据'));
-    }
-
-    // 确保用户数据库存在
-    try {
-      await databaseManager.getUserConnection(user.userDatabaseName);
-    } catch (dbError) {
-      console.error('用户数据库连接失败:', dbError);
-      // 尝试创建用户数据库
-      try {
-        await databaseManager.createUserDatabase(user.userDatabaseName, user._id);
-      } catch (createError) {
-        console.error('创建用户数据库失败:', createError);
-        return next(createError(500, '登录失败，请联系管理员'));
-      }
     }
 
     // 更新最后登录时间
@@ -145,83 +117,19 @@ exports.getMe = async (req, res, next) => {
 };
 
 /**
- * @desc    刷新令牌
- * @route   POST /api/auth/refresh-token
+ * @desc    检查系统初始化状态
+ * @route   GET /api/auth/init-status
  * @access  Public
  */
-exports.refreshToken = async (req, res, next) => {
+exports.getInitStatus = async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      return next(createError(400, '请提供刷新令牌'));
-    }
-
-    // 验证刷新令牌
-    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
-
-    // 查找用户
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      return next(createError(401, '无效的刷新令牌'));
-    }
-
-    // 检查用户是否被禁用
-    if (!user.isActive) {
-      return next(createError(401, '账号已被禁用，请联系管理员'));
-    }
-
-    // 生成新令牌
-    const token = user.getSignedJwtToken();
-    const newRefreshToken = user.getRefreshToken();
+    const user = await User.findOne({});
+    const isInitialized = !!user;
 
     res.status(200).json({
       success: true,
       data: {
-        token,
-        refreshToken: newRefreshToken
-      }
-    });
-  } catch (error) {
-    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
-      return next(createError(401, '无效的刷新令牌'));
-    }
-    next(error);
-  }
-};
-
-/**
- * @desc    忘记密码
- * @route   POST /api/auth/forgot-password
- * @access  Public
- */
-exports.forgotPassword = async (req, res, next) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return next(createError(400, '请提供电子邮箱地址'));
-    }
-
-    // 查找用户
-    const user = await User.findOne({ email });
-    if (!user) {
-      return next(createError(404, '没有与该电子邮箱关联的用户'));
-    }
-
-    // 生成重置令牌
-    const resetToken = user.getResetPasswordToken();
-    await user.save({ validateBeforeSave: false });
-
-    // TODO: 发送重置密码邮件
-    // 由于邮件发送功能需要额外配置，这里仅返回重置令牌
-    // 实际应用中应该发送邮件，而不是直接返回令牌
-
-    res.status(200).json({
-      success: true,
-      data: {
-        message: '重置密码邮件已发送',
-        resetToken // 实际应用中不应返回此字段
+        isInitialized
       }
     });
   } catch (error) {
@@ -230,39 +138,53 @@ exports.forgotPassword = async (req, res, next) => {
 };
 
 /**
- * @desc    重置密码
- * @route   PUT /api/auth/reset-password/:resetToken
- * @access  Public
+ * @desc    更新用户信息
+ * @route   PUT /api/auth/profile
+ * @access  Private
  */
-exports.resetPassword = async (req, res, next) => {
+exports.updateProfile = async (req, res, next) => {
   try {
-    const { password } = req.body;
-    const { resetToken } = req.params;
+    const { fullName, callsign, qth } = req.body;
 
-    if (!password) {
-      return next(createError(400, '请提供新密码'));
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { fullName, callsign, qth },
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc    修改密码
+ * @route   PUT /api/auth/change-password
+ * @access  Private
+ */
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return next(createError(400, '请提供当前密码和新密码'));
     }
 
-    // 加密重置令牌
-    const resetPasswordToken = crypto
-      .createHash('sha256')
-      .update(resetToken)
-      .digest('hex');
-
     // 查找用户
-    const user = await User.findOne({
-      resetPasswordToken,
-      resetPasswordExpire: { $gt: Date.now() }
-    });
+    const user = await User.findById(req.user.id).select('+password');
 
-    if (!user) {
-      return next(createError(400, '无效或已过期的重置令牌'));
+    // 验证当前密码
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return next(createError(400, '当前密码不正确'));
     }
 
     // 设置新密码
-    user.password = password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+    user.password = newPassword;
     await user.save();
 
     // 返回响应
@@ -281,20 +203,15 @@ exports.resetPassword = async (req, res, next) => {
 const sendTokenResponse = (user, statusCode, res) => {
   // 生成令牌
   const token = user.getSignedJwtToken();
-  const refreshToken = user.getRefreshToken();
 
   // 用户数据
   const userData = {
     id: user._id,
     username: user.username,
-    email: user.email,
     fullName: user.fullName,
     callsign: user.callsign,
     qth: user.qth,
-    role: user.role,
-    avatar: user.avatar,
     lastLogin: user.lastLogin,
-    userDatabaseName: user.userDatabaseName,
     defaultCallsignProfile: user.defaultCallsignProfile,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
@@ -304,7 +221,6 @@ const sendTokenResponse = (user, statusCode, res) => {
     success: true,
     data: {
       token,
-      refreshToken,
       user: userData
     }
   });

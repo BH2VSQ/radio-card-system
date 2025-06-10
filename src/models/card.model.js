@@ -1,15 +1,44 @@
 const mongoose = require('mongoose');
 
-const CardSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+// 卡片编号计数器模型
+const CardCounterSchema = new mongoose.Schema({
+  year: {
+    type: Number,
+    required: true,
+    unique: true
   },
-  // 新增字段：关联的呼号档案
+  receivedCount: {
+    type: Number,
+    default: 0
+  },
+  sentCount: {
+    type: Number,
+    default: 0
+  }
+}, {
+  timestamps: true
+});
+
+const CardCounter = mongoose.model('CardCounter', CardCounterSchema);
+
+const CardSchema = new mongoose.Schema({
+  // 卡片编号（自动生成）
+  cardNumber: {
+    type: String,
+    unique: true,
+    index: true
+  },
+  // 关联的呼号档案
   callsignProfile: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CallsignProfile',
+    required: true,
+    index: true
+  },
+  // 卡片类型
+  cardType: {
+    type: String,
+    enum: ['received', 'sent'],
     required: true,
     index: true
   },
@@ -186,11 +215,62 @@ const CardSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// 生成卡片编号的函数
+async function generateCardNumber(cardType) {
+  const currentYear = new Date().getFullYear();
+  const yearSuffix = currentYear.toString().slice(-2); // 获取年份后两位
+  
+  // 查找或创建当年的计数器
+  let counter = await CardCounter.findOne({ year: currentYear });
+  if (!counter) {
+    counter = new CardCounter({ year: currentYear });
+  }
+  
+  // 根据卡片类型递增计数器
+  let sequenceNumber;
+  if (cardType === 'received') {
+    counter.receivedCount += 1;
+    sequenceNumber = counter.receivedCount;
+  } else {
+    counter.sentCount += 1;
+    sequenceNumber = counter.sentCount;
+  }
+  
+  await counter.save();
+  
+  // 生成序号（6位，不足补0）
+  const paddedSequence = sequenceNumber.toString().padStart(6, '0');
+  
+  // 生成类型标识
+  const typeCode = cardType === 'received' ? 'RC' : 'TC';
+  
+  // 生成16位随机16进制编码
+  const randomHex = Array.from({ length: 16 }, () => 
+    Math.floor(Math.random() * 16).toString(16)
+  ).join('');
+  
+  // 组合最终编号
+  return `${yearSuffix}${paddedSequence}${typeCode}${randomHex}`;
+}
+
+// 保存前自动生成卡片编号
+CardSchema.pre('save', async function(next) {
+  if (this.isNew && !this.cardNumber) {
+    try {
+      this.cardNumber = await generateCardNumber(this.cardType);
+    } catch (error) {
+      return next(error);
+    }
+  }
+  next();
+});
+
 // 创建索引
 CardSchema.index({ location: '2dsphere' });
-CardSchema.index({ userId: 1, callsign: 1 });
-CardSchema.index({ userId: 1, contactDate: -1 });
-CardSchema.index({ userId: 1, callsignProfile: 1 });
+CardSchema.index({ callsign: 1 });
+CardSchema.index({ contactDate: -1 });
+CardSchema.index({ callsignProfile: 1 });
+CardSchema.index({ cardType: 1 });
 CardSchema.index({ 'rfidTag.uid': 1 });
 CardSchema.index({ 'eyeballInfo.isEyeball': 1 });
 CardSchema.index({ 'eyeballInfo.meetingDate': 1 });
