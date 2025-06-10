@@ -25,7 +25,8 @@ import {
   Menu, 
   LogOut,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  UserCircle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -79,6 +80,11 @@ const MainLayout = () => {
       title: '呼号关联', 
       icon: <Users className="h-4 w-4" />, 
       path: '/callsign-associations' 
+    },
+    { 
+      title: '呼号档案', 
+      icon: <UserCircle className="h-4 w-4" />, 
+      path: '/callsign-profiles' 
     },
     { 
       title: '证书管理', 

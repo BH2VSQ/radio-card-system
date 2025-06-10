@@ -33,6 +33,9 @@ import RfidDevicesPage from './pages/rfid-devices/RfidDevicesPage';
 // 呼号关联
 import CallsignAssociationsPage from './pages/callsign-associations/CallsignAssociationsPage';
 
+// 呼号档案
+import CallsignProfilesPage from './pages/callsign-profiles/CallsignProfilesPage';
+
 // 证书管理
 import CertificatesPage from './pages/certificates/CertificatesPage';
 
@@ -93,6 +96,10 @@ const router = createBrowserRouter([
       {
         path: 'callsign-associations',
         element: <CallsignAssociationsPage />,
+      },
+      {
+        path: 'callsign-profiles',
+        element: <CallsignProfilesPage />,
       },
       {
         path: 'certificates',

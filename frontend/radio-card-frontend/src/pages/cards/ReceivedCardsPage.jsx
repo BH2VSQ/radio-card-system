@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
 import { 
   Search, 
   Plus, 
@@ -15,106 +17,68 @@ import {
   Calendar,
   MapPin,
   Eye,
-  MoreHorizontal
+  MoreHorizontal,
+  UserCircle
 } from 'lucide-react';
+import CallsignProfileSelector from '../../components/callsign/CallsignProfileSelector';
+import { cardService } from '../../services/card.service';
 
 const ReceivedCardsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [selectedProfile, setSelectedProfile] = useState('');
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    total: 0,
+    confirmed: 0,
+    pending: 0
+  });
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  // 模拟数据
   useEffect(() => {
-    const mockCards = [
-      {
-        id: '1',
-        callsign: 'JA1ABC',
-        name: '田中太郎',
-        qth: '东京都',
-        date: '2025-06-08',
-        time: '14:30',
-        frequency: '14.205 MHz',
-        mode: 'SSB',
-        rst_sent: '59',
-        rst_received: '59',
-        contactType: 'shortwave',
-        qslStatus: 'confirmed',
-        hasImage: true,
-        notes: '很棒的通联，信号很强'
-      },
-      {
-        id: '2',
-        callsign: 'VK2DEF',
-        name: 'John Smith',
-        qth: '悉尼',
-        date: '2025-06-07',
-        time: '09:15',
-        frequency: '21.300 MHz',
-        mode: 'CW',
-        rst_sent: '599',
-        rst_received: '579',
-        contactType: 'shortwave',
-        qslStatus: 'pending',
-        hasImage: false,
-        notes: ''
-      },
-      {
-        id: '3',
-        callsign: 'BH1GHI',
-        name: '李明',
-        qth: '北京',
-        date: '2025-06-06',
-        time: '20:45',
-        frequency: '439.750 MHz',
-        mode: 'FM',
-        rst_sent: '59',
-        rst_received: '59',
-        contactType: 'repeater',
-        qslStatus: 'confirmed',
-        hasImage: true,
-        notes: '通过中继台通联'
-      },
-      {
-        id: '4',
-        callsign: 'HL9JKL',
-        name: '김철수',
-        qth: '首尔',
-        date: '2025-06-05',
-        time: '16:20',
-        frequency: '7.074 MHz',
-        mode: 'FT8',
-        rst_sent: '-10',
-        rst_received: '-08',
-        contactType: 'digital',
-        qslStatus: 'confirmed',
-        hasImage: false,
-        notes: 'FT8数字模式通联'
-      },
-      {
-        id: '5',
-        callsign: 'W1MNO',
-        name: 'Mike Johnson',
-        qth: '纽约',
-        date: '2025-06-04',
-        time: '03:30',
-        frequency: '28.400 MHz',
-        mode: 'SSB',
-        rst_sent: '59',
-        rst_received: '57',
-        contactType: 'shortwave',
-        qslStatus: 'pending',
-        hasImage: true,
-        notes: '10米波段开通时的通联'
+    loadCards();
+  }, [selectedProfile, filterType]);
+
+  const loadCards = async () => {
+    try {
+      setLoading(true);
+      let response;
+      
+      if (selectedProfile && selectedProfile !== 'all') {
+        // 根据呼号档案获取卡片
+        response = await cardService.getByCallsignProfile(selectedProfile, {
+          type: 'received',
+          contactType: filterType === 'all' ? undefined : filterType
+        });
+      } else {
+        // 获取所有收到的卡片
+        response = await cardService.getReceived({
+          contactType: filterType === 'all' ? undefined : filterType
+        });
       }
-    ];
-    
-    setTimeout(() => {
-      setCards(mockCards);
+      
+      setCards(response.data || []);
+      
+      // 计算统计信息
+      const total = response.data?.length || 0;
+      const confirmed = response.data?.filter(card => card.qslStatus === 'confirmed').length || 0;
+      const pending = response.data?.filter(card => card.qslStatus === 'pending').length || 0;
+      
+      setStats({ total, confirmed, pending });
+    } catch (error) {
+      console.error('加载卡片失败:', error);
+      toast({
+        title: '加载失败',
+        description: error.response?.data?.message || '无法加载卡片数据',
+        variant: 'destructive'
+      });
+      setCards([]);
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  };
 
   const getContactTypeLabel = (type) => {
     const types = {
@@ -133,7 +97,8 @@ const ReceivedCardsPage = () => {
     const colors = {
       confirmed: 'bg-green-100 text-green-800',
       pending: 'bg-yellow-100 text-yellow-800',
-      rejected: 'bg-red-100 text-red-800'
+      sent: 'bg-blue-100 text-blue-800',
+      received: 'bg-purple-100 text-purple-800'
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -141,33 +106,69 @@ const ReceivedCardsPage = () => {
   const getStatusLabel = (status) => {
     const labels = {
       confirmed: '已确认',
-      pending: '待确认',
-      rejected: '已拒绝'
+      pending: '待处理',
+      sent: '已发送',
+      received: '已收到'
     };
     return labels[status] || '未知';
   };
 
   const filteredCards = cards.filter(card => {
-    const matchesSearch = card.callsign.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         card.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         card.qth.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!searchTerm) return true;
     
-    if (filterType === 'all') return matchesSearch;
-    return matchesSearch && card.contactType === filterType;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      card.callsign?.toLowerCase().includes(searchLower) ||
+      card.name?.toLowerCase().includes(searchLower) ||
+      card.qth?.toLowerCase().includes(searchLower) ||
+      card.country?.toLowerCase().includes(searchLower)
+    );
   });
+
+  const handleExport = async () => {
+    try {
+      // TODO: 实现导出功能
+      toast({
+        title: '功能开发中',
+        description: '导出功能正在开发中',
+      });
+    } catch (error) {
+      toast({
+        title: '导出失败',
+        description: '导出数据时发生错误',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      // TODO: 实现导入功能
+      toast({
+        title: '功能开发中',
+        description: '导入功能正在开发中',
+      });
+    } catch (error) {
+      toast({
+        title: '导入失败',
+        description: '导入数据时发生错误',
+        variant: 'destructive'
+      });
+    }
+  };
 
   if (loading) {
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">收到的卡片</h1>
-            <p className="text-gray-500 mt-1">管理您收到的QSL卡片</p>
+            <h1 className="text-3xl font-bold text-foreground">收到的卡片</h1>
+            <p className="text-muted-foreground mt-1">管理您收到的QSL卡片</p>
           </div>
         </div>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2 text-gray-500">加载中...</span>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2 text-muted-foreground">加载中...</span>
         </div>
       </div>
     );
@@ -178,17 +179,22 @@ const ReceivedCardsPage = () => {
       {/* 页面标题和操作 */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">收到的卡片</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold text-foreground">收到的卡片</h1>
+          <p className="text-muted-foreground mt-1">
             管理您收到的QSL卡片 ({filteredCards.length} 张)
           </p>
+          <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+            <span>总计: {stats.total}</span>
+            <span>已确认: {stats.confirmed}</span>
+            <span>待处理: {stats.pending}</span>
+          </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             导出
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleImport}>
             <Upload className="h-4 w-4 mr-2" />
             导入
           </Button>
@@ -202,11 +208,26 @@ const ReceivedCardsPage = () => {
       {/* 搜索和筛选 */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* 呼号档案选择 */}
+            <div className="space-y-2">
+              <Label htmlFor="profile-selector">呼号档案</Label>
+              <CallsignProfileSelector
+                value={selectedProfile}
+                onValueChange={setSelectedProfile}
+                placeholder="选择呼号档案"
+                showAllOption={true}
+                className="w-full"
+              />
+            </div>
+
+            {/* 搜索框 */}
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="search">搜索</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
+                  id="search"
                   placeholder="搜索呼号、姓名或QTH..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -214,23 +235,24 @@ const ReceivedCardsPage = () => {
                 />
               </div>
             </div>
-            <div className="flex gap-2">
+
+            {/* 联络类型筛选 */}
+            <div className="space-y-2">
+              <Label htmlFor="filter-type">联络类型</Label>
               <select
+                id="filter-type"
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="all">所有类型</option>
                 <option value="shortwave">短波通联</option>
                 <option value="repeater">中继通联</option>
                 <option value="satellite">卫星通联</option>
-                <option value="digital">数字模式</option>
                 <option value="direct">本地直频</option>
+                <option value="eyeball_offline">线下EYEBALL</option>
+                <option value="eyeball_online">线上EYEBALL</option>
               </select>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                筛选
-              </Button>
             </div>
           </div>
         </CardContent>
@@ -239,16 +261,16 @@ const ReceivedCardsPage = () => {
       {/* 卡片列表 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredCards.map((card) => (
-          <Card key={card.id} className="radio-card hover:shadow-lg transition-all duration-200 cursor-pointer"
-                onClick={() => navigate(`/cards/${card.id}`)}>
+          <Card key={card._id} className="hover:shadow-lg transition-all duration-200 cursor-pointer"
+                onClick={() => navigate(`/cards/${card._id}`)}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-lg font-bold text-blue-600">
+                  <CardTitle className="text-lg font-bold text-primary">
                     {card.callsign}
                   </CardTitle>
-                  <CardDescription className="text-sm font-medium text-gray-700">
-                    {card.name}
+                  <CardDescription className="text-sm font-medium">
+                    {card.name || '未知'}
                   </CardDescription>
                 </div>
                 <div className="flex gap-1">
@@ -267,32 +289,34 @@ const ReceivedCardsPage = () => {
             
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="flex items-center text-gray-600">
+                <div className="flex items-center text-muted-foreground">
                   <MapPin className="h-3 w-3 mr-1" />
-                  <span>{card.qth}</span>
+                  <span>{card.qth || '未知'}</span>
                 </div>
-                <div className="flex items-center text-gray-600">
+                <div className="flex items-center text-muted-foreground">
                   <Calendar className="h-3 w-3 mr-1" />
-                  <span>{card.date}</span>
+                  <span>{card.contactDate ? new Date(card.contactDate).toLocaleDateString() : '未知'}</span>
                 </div>
               </div>
               
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">频率:</span>
-                  <span className="font-medium">{card.frequency}</span>
+                  <span className="text-muted-foreground">频率:</span>
+                  <span className="font-medium">{card.frequency ? `${card.frequency} MHz` : '未知'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">模式:</span>
-                  <span className="font-medium">{card.mode}</span>
+                  <span className="text-muted-foreground">模式:</span>
+                  <span className="font-medium">{card.mode || '未知'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">RST:</span>
-                  <span className="font-medium">{card.rst_sent}/{card.rst_received}</span>
+                  <span className="text-muted-foreground">RST:</span>
+                  <span className="font-medium">
+                    {card.rstSent && card.rstReceived ? `${card.rstSent}/${card.rstReceived}` : '未知'}
+                  </span>
                 </div>
               </div>
               
-              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-between pt-2 border-t">
                 <Badge variant="outline" className="text-xs">
                   {getContactTypeLabel(card.contactType)}
                 </Badge>
@@ -307,7 +331,7 @@ const ReceivedCardsPage = () => {
               </div>
               
               {card.notes && (
-                <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
                   {card.notes}
                 </div>
               )}
@@ -320,11 +344,11 @@ const ReceivedCardsPage = () => {
       {filteredCards.length === 0 && (
         <Card>
           <CardContent className="text-center py-12">
-            <Radio className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <Radio className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">
               {searchTerm ? '未找到匹配的卡片' : '还没有收到卡片'}
             </h3>
-            <p className="text-gray-500 mb-4">
+            <p className="text-muted-foreground mb-4">
               {searchTerm ? '尝试调整搜索条件' : '开始您的第一次通联吧'}
             </p>
             {!searchTerm && (
