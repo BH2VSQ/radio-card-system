@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const User = require('../models/user.model');
+const databaseManager = require('../utils/databaseManager');
 const { createError } = require('../utils/error.util');
 
 /**
@@ -27,9 +28,15 @@ exports.register = async (req, res, next) => {
       qth
     });
 
-    // 生成令牌
-    const token = user.getSignedJwtToken();
-    const refreshToken = user.getRefreshToken();
+    // 为新用户创建专属数据库
+    try {
+      await databaseManager.createUserDatabase(user.userDatabaseName, user._id);
+    } catch (dbError) {
+      console.error('创建用户数据库失败:', dbError);
+      // 如果数据库创建失败，删除已创建的用户
+      await User.findByIdAndDelete(user._id);
+      return next(createError(500, '用户注册失败，请重试'));
+    }
 
     // 更新最后登录时间
     user.lastLogin = Date.now();
@@ -76,6 +83,20 @@ exports.login = async (req, res, next) => {
       return next(createError(401, '无效的凭据'));
     }
 
+    // 确保用户数据库存在
+    try {
+      await databaseManager.getUserConnection(user.userDatabaseName);
+    } catch (dbError) {
+      console.error('用户数据库连接失败:', dbError);
+      // 尝试创建用户数据库
+      try {
+        await databaseManager.createUserDatabase(user.userDatabaseName, user._id);
+      } catch (createError) {
+        console.error('创建用户数据库失败:', createError);
+        return next(createError(500, '登录失败，请联系管理员'));
+      }
+    }
+
     // 更新最后登录时间
     user.lastLogin = Date.now();
     await user.save();
@@ -112,7 +133,7 @@ exports.logout = async (req, res, next) => {
  */
 exports.getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).populate('defaultCallsignProfile');
 
     res.status(200).json({
       success: true,
@@ -273,6 +294,8 @@ const sendTokenResponse = (user, statusCode, res) => {
     role: user.role,
     avatar: user.avatar,
     lastLogin: user.lastLogin,
+    userDatabaseName: user.userDatabaseName,
+    defaultCallsignProfile: user.defaultCallsignProfile,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };

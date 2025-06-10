@@ -53,7 +53,19 @@ const UserSchema = new mongoose.Schema({
     type: Date
   },
   resetPasswordToken: String,
-  resetPasswordExpire: Date
+  resetPasswordExpire: Date,
+  // 新增字段：用户专属数据库名称
+  userDatabaseName: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  // 新增字段：默认呼号档案ID
+  defaultCallsignProfile: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CallsignProfile',
+    default: null
+  }
 }, {
   timestamps: true
 });
@@ -70,10 +82,18 @@ UserSchema.pre('save', async function(next) {
   next();
 });
 
+// 生成用户专属数据库名称
+UserSchema.pre('save', async function(next) {
+  if (this.isNew && !this.userDatabaseName) {
+    this.userDatabaseName = `radio_card_user_${this._id}`;
+  }
+  next();
+});
+
 // 生成JWT令牌
 UserSchema.methods.getSignedJwtToken = function() {
   return jwt.sign(
-    { id: this._id, role: this.role },
+    { id: this._id, role: this.role, userDb: this.userDatabaseName },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRE }
   );

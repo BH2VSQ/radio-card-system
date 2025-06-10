@@ -6,6 +6,13 @@ const CardSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  // 新增字段：关联的呼号档案
+  callsignProfile: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CallsignProfile',
+    required: true,
+    index: true
+  },
   callsign: {
     type: String,
     required: true,
@@ -183,6 +190,7 @@ const CardSchema = new mongoose.Schema({
 CardSchema.index({ location: '2dsphere' });
 CardSchema.index({ userId: 1, callsign: 1 });
 CardSchema.index({ userId: 1, contactDate: -1 });
+CardSchema.index({ userId: 1, callsignProfile: 1 });
 CardSchema.index({ 'rfidTag.uid': 1 });
 CardSchema.index({ 'eyeballInfo.isEyeball': 1 });
 CardSchema.index({ 'eyeballInfo.meetingDate': 1 });
