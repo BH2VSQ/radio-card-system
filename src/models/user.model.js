@@ -85,7 +85,10 @@ UserSchema.pre('save', async function(next) {
 // 生成用户专属数据库名称
 UserSchema.pre('save', async function(next) {
   if (this.isNew && !this.userDatabaseName) {
-    this.userDatabaseName = `radio_card_user_${this._id}`;
+    // 使用时间戳和随机数生成唯一的数据库名称
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    this.userDatabaseName = `radio_card_user_${timestamp}_${random}`;
   }
   next();
 });

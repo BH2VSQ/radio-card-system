@@ -50,36 +50,36 @@ class DatabaseManager {
   // 为用户数据库注册模型
   async registerUserModels(connection) {
     // 注册卡片模型
-    const CardSchema = require('./card.model').schema;
+    const CardSchema = require('../models/card.model').schema;
     connection.model('Card', CardSchema);
 
     // 注册呼号档案模型
-    const CallsignProfileSchema = require('./callsignProfile.model').schema;
+    const CallsignProfileSchema = require('../models/callsignProfile.model').schema;
     connection.model('CallsignProfile', CallsignProfileSchema);
 
     // 注册其他用户相关模型
-    const CategorySchema = require('./category.model').schema;
+    const CategorySchema = require('../models/category.model').schema;
     connection.model('Category', CategorySchema);
 
-    const TagSchema = require('./tag.model').schema;
+    const TagSchema = require('../models/tag.model').schema;
     connection.model('Tag', TagSchema);
 
-    const SentCardSchema = require('./sentCard.model').schema;
+    const SentCardSchema = require('../models/sentCard.model').schema;
     connection.model('SentCard', SentCardSchema);
 
-    const CertificateSchema = require('./certificate.model').schema;
+    const CertificateSchema = require('../models/certificate.model').schema;
     connection.model('Certificate', CertificateSchema);
 
-    const CertificateTemplateSchema = require('./certificateTemplate.model').schema;
+    const CertificateTemplateSchema = require('../models/certificateTemplate.model').schema;
     connection.model('CertificateTemplate', CertificateTemplateSchema);
 
-    const RfidDeviceSchema = require('./rfidDevice.model').schema;
+    const RfidDeviceSchema = require('../models/rfidDevice.model').schema;
     connection.model('RfidDevice', RfidDeviceSchema);
 
-    const RfidLogSchema = require('./rfidLog.model').schema;
+    const RfidLogSchema = require('../models/rfidLog.model').schema;
     connection.model('RfidLog', RfidLogSchema);
 
-    const CallsignAssociationSchema = require('./callsignAssociation.model').schema;
+    const CallsignAssociationSchema = require('../models/callsignAssociation.model').schema;
     connection.model('CallsignAssociation', CallsignAssociationSchema);
   }
 

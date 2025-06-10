@@ -1,7 +1,7 @@
 const CallsignProfile = require('../models/callsignProfile.model');
 const databaseManager = require('../utils/databaseManager');
 const asyncHandler = require('../middleware/async');
-const ErrorResponse = require('../utils/errorResponse');
+const { createError } = require('../utils/error.util');
 
 // @desc    获取用户的所有呼号档案
 // @route   GET /api/callsign-profiles
@@ -10,7 +10,10 @@ exports.getCallsignProfiles = asyncHandler(async (req, res, next) => {
   const userConnection = await databaseManager.getUserConnection(req.user.userDatabaseName);
   const CallsignProfile = userConnection.model('CallsignProfile');
 
-  const profiles = await CallsignProfile.getActiveCallsigns(req.user.id);
+  const profiles = await CallsignProfile.find({
+    userId: req.user.id,
+    isActive: true
+  }).sort({ createdAt: -1 });
 
   res.status(200).json({
     success: true,
@@ -33,7 +36,7 @@ exports.getCallsignProfile = asyncHandler(async (req, res, next) => {
   });
 
   if (!profile) {
-    return next(new ErrorResponse('呼号档案不存在', 404));
+    return next(createError(404, '呼号档案不存在'));
   }
 
   res.status(200).json({
@@ -60,7 +63,7 @@ exports.createCallsignProfile = asyncHandler(async (req, res, next) => {
   });
 
   if (existingProfile) {
-    return next(new ErrorResponse('该呼号档案已存在', 400));
+    return next(createError(400, '该呼号档案已存在'));
   }
 
   // 如果这是用户的第一个呼号档案，自动设为默认
@@ -103,7 +106,7 @@ exports.updateCallsignProfile = asyncHandler(async (req, res, next) => {
   });
 
   if (!profile) {
-    return next(new ErrorResponse('呼号档案不存在', 404));
+    return next(createError(404, '呼号档案不存在'));
   }
 
   // 如果更新呼号名称，检查是否重复
@@ -116,7 +119,7 @@ exports.updateCallsignProfile = asyncHandler(async (req, res, next) => {
     });
 
     if (existingProfile) {
-      return next(new ErrorResponse('该呼号档案已存在', 400));
+      return next(createError(400, '该呼号档案已存在'));
     }
   }
 
@@ -153,7 +156,7 @@ exports.deleteCallsignProfile = asyncHandler(async (req, res, next) => {
   });
 
   if (!profile) {
-    return next(new ErrorResponse('呼号档案不存在', 404));
+    return next(createError(404, '呼号档案不存在'));
   }
 
   // 检查是否有关联的卡片
@@ -163,7 +166,7 @@ exports.deleteCallsignProfile = asyncHandler(async (req, res, next) => {
   });
 
   if (cardCount > 0) {
-    return next(new ErrorResponse('无法删除有关联卡片的呼号档案，请先处理相关卡片', 400));
+    return next(createError(400, '无法删除有关联卡片的呼号档案，请先处理相关卡片'));
   }
 
   // 软删除：设置为非活跃状态
@@ -216,7 +219,7 @@ exports.setDefaultCallsignProfile = asyncHandler(async (req, res, next) => {
   });
 
   if (!profile) {
-    return next(new ErrorResponse('呼号档案不存在', 404));
+    return next(createError(404, '呼号档案不存在'));
   }
 
   // 将其他呼号档案的默认状态设为false
@@ -248,10 +251,14 @@ exports.getDefaultCallsignProfile = asyncHandler(async (req, res, next) => {
   const userConnection = await databaseManager.getUserConnection(req.user.userDatabaseName);
   const CallsignProfile = userConnection.model('CallsignProfile');
 
-  const profile = await CallsignProfile.getDefaultCallsign(req.user.id);
+  const profile = await CallsignProfile.findOne({
+    userId: req.user.id,
+    isDefault: true,
+    isActive: true
+  });
 
   if (!profile) {
-    return next(new ErrorResponse('未找到默认呼号档案', 404));
+    return next(createError(404, '未找到默认呼号档案'));
   }
 
   res.status(200).json({

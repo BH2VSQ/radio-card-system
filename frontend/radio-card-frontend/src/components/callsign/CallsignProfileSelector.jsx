@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../ui/badge';
 import { Star } from 'lucide-react';
 import { callsignProfileService } from '../../services/callsignProfile.service';
-import { useToast } from '../ui/use-toast';
+import { useToast } from '../../hooks/use-toast';
 
 const CallsignProfileSelector = ({ 
   value, 

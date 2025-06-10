@@ -9,12 +9,12 @@ const {
   getDefaultCallsignProfile
 } = require('../controllers/callsignProfile.controller');
 
-const { protect } = require('../middleware/auth.middleware');
+const { authMiddleware } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
 // 保护所有路由
-router.use(protect);
+router.use(authMiddleware);
 
 router
   .route('/')
