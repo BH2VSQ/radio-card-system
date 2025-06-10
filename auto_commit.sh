@@ -6,6 +6,18 @@ PROJECT_ROOT="/home/ubuntu/radio-card-system"
 # 进入项目目录
 cd "$PROJECT_ROOT"
 
+# 运行后端测试
+echo "正在运行后端测试..."
+node test_backend.js
+
+# 检查测试结果
+if [ $? -ne 0 ]; then
+  echo "后端测试失败，不执行提交操作。"
+  exit 1
+fi
+
+echo "测试通过，正在提交更改。"
+
 # 添加所有更改
 git add .
 
