@@ -11,6 +11,22 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // 检查系统初始化状态
+  useEffect(() => {
+    const checkInitStatus = async () => {
+      try {
+        const response = await api.get('/auth/init-status');
+        setIsInitialized(response.data.isInitialized);
+      } catch (err) {
+        console.error('Failed to check init status:', err);
+        setIsInitialized(false);
+      }
+    };
+
+    checkInitStatus();
+  }, []);
 
   // 检查用户是否已登录
   useEffect(() => {
@@ -36,49 +52,40 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    checkAuthStatus();
-  }, []);
+    if (isInitialized) {
+      checkAuthStatus();
+    } else {
+      setLoading(false);
+    }
+  }, [isInitialized]);
+
+  // 系统初始化
+  const initialize = async (userData) => {
+    setError(null);
+    try {
+      const response = await api.post('/auth/initialize', userData);
+      setIsInitialized(true);
+      setCurrentUser(response.data.user);
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('refreshToken', response.data.refreshToken);
+      return response.data;
+    } catch (err) {
+      setError(err.response?.data?.message || '系统初始化失败');
+      throw err;
+    }
+  };
 
   // 登录
   const login = async (email, password) => {
     setError(null);
     try {
-      // 模拟登录成功
-      const mockUser = {
-        id: '1',
-        email: email,
-        username: 'test_user',
-        callsign: 'BH2VSQ',
-        name: '测试用户',
-        role: 'user'
-      };
-      
-      const mockToken = 'mock_jwt_token_' + Date.now();
-      const mockRefreshToken = 'mock_refresh_token_' + Date.now();
-      
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('refreshToken', mockRefreshToken);
-      setCurrentUser(mockUser);
-      
-      return {
-        user: mockUser,
-        token: mockToken,
-        refreshToken: mockRefreshToken
-      };
-    } catch (err) {
-      setError(err.response?.data?.message || '登录失败，请检查您的凭据');
-      throw err;
-    }
-  };
-
-  // 注册
-  const register = async (userData) => {
-    setError(null);
-    try {
-      const response = await api.post('/auth/register', userData);
+      const response = await api.post('/auth/login', { email, password });
+      setCurrentUser(response.data.user);
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('refreshToken', response.data.refreshToken);
       return response.data;
     } catch (err) {
-      setError(err.response?.data?.message || '注册失败，请稍后再试');
+      setError(err.response?.data?.message || '登录失败，请检查您的凭据');
       throw err;
     }
   };
@@ -127,7 +134,7 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (userData) => {
     setError(null);
     try {
-      const response = await api.put('/auth/update-profile', userData);
+      const response = await api.put('/auth/profile', userData);
       setCurrentUser(response.data.user);
       return response.data;
     } catch (err) {
@@ -140,7 +147,7 @@ export const AuthProvider = ({ children }) => {
   const changePassword = async (currentPassword, newPassword) => {
     setError(null);
     try {
-      const response = await api.post('/auth/change-password', {
+      const response = await api.put('/auth/change-password', {
         currentPassword,
         newPassword,
       });
@@ -155,8 +162,9 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     loading,
     error,
+    isInitialized,
+    initialize,
     login,
-    register,
     logout,
     forgotPassword,
     resetPassword,

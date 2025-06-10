@@ -132,13 +132,6 @@ const LoginPage = () => {
               )}
             </Button>
           </form>
-          
-          <div className="mt-6 text-center text-sm">
-            还没有账户?{' '}
-            <Link to="/auth/register" className="text-primary hover:underline font-medium">
-              注册
-            </Link>
-          </div>
         </CardContent>
       </Card>
     </div>

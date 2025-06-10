@@ -4,7 +4,7 @@ import AuthLayout from './layouts/AuthLayout';
 
 // 认证页面
 import LoginPage from './pages/auth/LoginPage';
-import RegisterPage from './pages/auth/RegisterPage';
+import InitializePage from './pages/auth/InitializePage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 
 // 仪表盘
@@ -47,14 +47,17 @@ import NotFoundPage from './pages/NotFoundPage';
 
 // 认证保护组件
 import ProtectedRoute from './components/ProtectedRoute';
+import InitializeRoute from './components/InitializeRoute';
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: (
-      <ProtectedRoute>
-        <MainLayout />
-      </ProtectedRoute>
+      <InitializeRoute>
+        <ProtectedRoute>
+          <MainLayout />
+        </ProtectedRoute>
+      </InitializeRoute>
     ),
     children: [
       {
@@ -117,9 +120,12 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/auth/login" replace /> },
       { path: 'login', element: <LoginPage /> },
-      { path: 'register', element: <RegisterPage /> },
       { path: 'forgot-password', element: <ForgotPasswordPage /> },
     ],
+  },
+  {
+    path: '/initialize',
+    element: <InitializePage />,
   },
   {
     path: '*',
