@@ -269,3 +269,37 @@ radio-card-system/
 *最后更新时间: 2025年6月10日*
 *项目版本: v1.0.0-beta*
 
+
+
+
+### 部署日志
+
+- **2025年6月10日**
+  - 克隆GitHub仓库 `radio-card-system`。
+  - 读取 `PROJECT_STATUS.md` 文件。
+  - 安装后端依赖 (`npm install`)。
+  - 安装前端依赖 (`pnpm install`)。
+  - 构建前端项目 (`npm run build`)。
+  - 创建 `.env` 文件并配置 `PORT`、`MONGO_URI` 和 `JWT_SECRET`。
+  - 尝试启动后端服务器，发现MongoDB连接失败，因为MongoDB服务未运行。
+  - 安装并启动MongoDB服务。
+  - 再次启动后端服务器，MongoDB连接成功。
+  - 暴露前端端口 `5173` 和后端端口 `5000`。
+  - 尝试访问前端暴露地址，显示“The temporary website is currently unavailable”，可能是因为前端开发服务器未正确暴露或需要生产构建。
+  - 停止前端开发服务器。
+
+
+
+
+
+- **2025年6月10日**
+  - 成功通过 `serve` 工具启动前端静态文件服务器。
+  - 访问前端暴露地址，显示登录页面，表明前端已正常运行。
+
+
+
+
+- **2025年6月10日**
+  - 成功部署前端到公网，地址为：https://eoffboal.manus.space
+  - 访问部署的前端地址，显示登录页面，表明前端已正常部署。
+
