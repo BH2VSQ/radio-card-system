@@ -59,6 +59,10 @@ const router = createBrowserRouter([
         element: <DashboardPage />,
       },
       {
+        path: 'dashboard',
+        element: <DashboardPage />,
+      },
+      {
         path: 'cards',
         children: [
           { index: true, element: <Navigate to="/cards/received" replace /> },

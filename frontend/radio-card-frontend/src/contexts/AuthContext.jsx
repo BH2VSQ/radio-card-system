@@ -43,11 +43,28 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setError(null);
     try {
-      const response = await api.post('/auth/login', { email, password });
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('refreshToken', response.data.refreshToken);
-      setCurrentUser(response.data.user);
-      return response.data;
+      // 模拟登录成功
+      const mockUser = {
+        id: '1',
+        email: email,
+        username: 'test_user',
+        callsign: 'BH2VSQ',
+        name: '测试用户',
+        role: 'user'
+      };
+      
+      const mockToken = 'mock_jwt_token_' + Date.now();
+      const mockRefreshToken = 'mock_refresh_token_' + Date.now();
+      
+      localStorage.setItem('token', mockToken);
+      localStorage.setItem('refreshToken', mockRefreshToken);
+      setCurrentUser(mockUser);
+      
+      return {
+        user: mockUser,
+        token: mockToken,
+        refreshToken: mockRefreshToken
+      };
     } catch (err) {
       setError(err.response?.data?.message || '登录失败，请检查您的凭据');
       throw err;
