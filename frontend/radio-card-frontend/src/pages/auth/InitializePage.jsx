@@ -52,9 +52,10 @@ const InitializePage = () => {
     }
 
     setIsLoading(true);
+    console.log('InitializePage: Attempting to initialize with data:', formData);
 
     try {
-      await initialize({
+      const response = await initialize({
         username: formData.username,
         email: formData.email,
         password: formData.password,
@@ -62,9 +63,16 @@ const InitializePage = () => {
         callsign: formData.callsign,
         qth: formData.qth
       });
+      console.log('InitializePage: Initialization successful, response:', response);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message || '系统初始化失败');
+      console.error('InitializePage: Initialization failed:', err);
+      if (err.response) {
+        console.error('InitializePage: Backend error response:', err.response.data);
+        setError(err.response.data.message || '系统初始化失败');
+      } else {
+        setError(err.message || '系统初始化失败');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -196,4 +204,5 @@ const InitializePage = () => {
 };
 
 export default InitializePage;
+
 

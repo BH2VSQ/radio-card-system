@@ -18,10 +18,14 @@ export const AuthProvider = ({ children }) => {
     const checkInitStatus = async () => {
       try {
         const response = await api.get('/auth/init-status');
-        setIsInitialized(response.data.isInitialized);
+        console.log('AuthContext: Init Status API Response:', response.data);
+        setIsInitialized(response.data.data.isInitialized);
       } catch (err) {
-        console.error('Failed to check init status:', err);
+        console.error('AuthContext: Failed to check init status:', err);
+        // 如果请求失败，假设系统未初始化
         setIsInitialized(false);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -30,6 +34,7 @@ export const AuthProvider = ({ children }) => {
 
   // 检查用户是否已登录
   useEffect(() => {
+    console.log('AuthContext: isInitialized state changed:', isInitialized);
     const checkAuthStatus = async () => {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -41,7 +46,7 @@ export const AuthProvider = ({ children }) => {
         const response = await api.get('/auth/me');
         setCurrentUser(response.data.user);
       } catch (err) {
-        console.error('Failed to fetch user data:', err);
+        console.error('AuthContext: Failed to fetch user data:', err);
         // 如果获取用户信息失败，清除token
         if (err.response && err.response.status === 401) {
           localStorage.removeItem('token');
@@ -64,12 +69,15 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     try {
       const response = await api.post('/auth/initialize', userData);
+      console.log('AuthContext: Initialize API Response:', response.data);
       setIsInitialized(true);
       setCurrentUser(response.data.user);
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('refreshToken', response.data.refreshToken);
+      console.log('AuthContext: isInitialized set to true, currentUser set, tokens stored.');
       return response.data;
     } catch (err) {
+      console.error('AuthContext: Initialize Error:', err.response ? err.response.data : err.message, err);
       setError(err.response?.data?.message || '系统初始化失败');
       throw err;
     }
@@ -98,7 +106,7 @@ export const AuthProvider = ({ children }) => {
         await api.post('/auth/logout', { refreshToken });
       }
     } catch (err) {
-      console.error('Logout error:', err);
+      console.error('AuthContext: Logout error:', err);
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
@@ -174,4 +182,5 @@ export const AuthProvider = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
 
