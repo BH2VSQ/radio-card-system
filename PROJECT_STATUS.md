@@ -442,3 +442,11 @@ radio-card-system/
   - **未完成**: 确保初始化成功后能正确跳转到仪表盘并登录。
 
 
+
+
+- **2025年6月11日 - 移除Email和QTH字段**
+  - ✅ 从前端`InitializePage.jsx`中移除Email和QTH字段。
+  - ✅ 从后端`auth.controller.js`的`initialize`和`updateProfile`函数中移除QTH字段。
+  - ✅ 从`user.model.js`中移除QTH字段。
+
+
