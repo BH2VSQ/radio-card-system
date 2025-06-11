@@ -25,10 +25,6 @@ const UserSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  qth: {
-    type: String,
-    trim: true
-  },
   isActive: {
     type: Boolean,
     default: true

@@ -11,12 +11,10 @@ import { Loader2, Radio } from 'lucide-react';
 const InitializePage = () => {
   const [formData, setFormData] = useState({
     username: '',
-    email: '',
     password: '',
     confirmPassword: '',
     name: '',
-    callsign: '',
-    qth: ''
+    callsign: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,7 +34,7 @@ const InitializePage = () => {
     setError('');
 
     // 验证表单
-    if (!formData.username || !formData.email || !formData.password) {
+    if (!formData.username || !formData.password) {
       setError('请填写所有必填字段');
       return;
     }
@@ -57,11 +55,9 @@ const InitializePage = () => {
     try {
       const response = await initialize({
         username: formData.username,
-        email: formData.email,
         password: formData.password,
-        name: formData.name,
-        callsign: formData.callsign,
-        qth: formData.qth
+        fullName: formData.name,
+        callsign: formData.callsign
       });
       console.log('InitializePage: Initialization successful, response:', response);
       navigate('/dashboard');
@@ -107,19 +103,6 @@ const InitializePage = () => {
                 value={formData.username}
                 onChange={handleChange}
                 placeholder="请输入用户名"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">电子邮箱 *</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="name@example.com"
                 required
               />
             </div>
@@ -171,18 +154,6 @@ const InitializePage = () => {
                 value={formData.callsign}
                 onChange={handleChange}
                 placeholder="例如：BH2VSQ"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="qth">QTH</Label>
-              <Input
-                id="qth"
-                name="qth"
-                type="text"
-                value={formData.qth}
-                onChange={handleChange}
-                placeholder="请输入您的位置"
               />
             </div>
 

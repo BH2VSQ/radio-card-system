@@ -8,7 +8,7 @@ const { createError } = require('../utils/error.util');
  */
 exports.initialize = async (req, res, next) => {
   try {
-    const { username, password, fullName, callsign, qth } = req.body;
+    const { username, password, fullName, callsign } = req.body;
 
     // 检查系统是否已初始化
     const existingUser = await User.findOne({});
@@ -22,7 +22,6 @@ exports.initialize = async (req, res, next) => {
       password,
       fullName,
       callsign,
-      qth,
       isInitialized: true
     });
 
@@ -144,11 +143,11 @@ exports.getInitStatus = async (req, res, next) => {
  */
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { fullName, callsign, qth } = req.body;
+    const { fullName, callsign } = req.body;
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { fullName, callsign, qth },
+      { fullName, callsign },
       { new: true, runValidators: true }
     );
 
